@@ -13,9 +13,12 @@
   "license": "ISC",
   "dependencies": {
     "@alch/alchemy-web3": "^1.2.4",
+    "@flashbots/ethers-provider-bundle": "^0.4.3",
     "axios": "^0.26.0",
     "command-line-args": "^5.2.1",
     "command-line-usage": "^6.1.1",
+    "ethers": "^5.5.4",
+    "solc": "^0.8.12",
     "web3": "^1.7.0"
   }
 }

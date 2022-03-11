@@ -3,6 +3,7 @@ const {createAlchemyWeb3} = require("@alch/alchemy-web3")
 const commandLineArgs = require('command-line-args');
 const commandLineUsage = require('command-line-usage');
 const axios = require('axios');
+const solc = require('solc');
 
 alchemy_mainnet_base = 'eth-mainnet.alchemyapi.io/v2/';
 alchemy_rinkeby_base = 'eth-rinkeby.alchemyapi.io/v2/';
@@ -11,8 +12,8 @@ ethscan_mainnet_api_base = 'https://api.etherscan.io/';
 
 const optionDefinitions = [
   {name: 'alchemykey', type: String, description: 'apikey of enhanced alchemy web3.js.'},
+  {name: 'infurakey', type: String, description: 'apikey of infura.'},
   {name: 'ethscankey', type: String, description: 'apikey of etherscan'},
-  {name: 'rpc', type: String, description: 'custom ethereum gateway.'},
   {name: 'net', type: String, description: 'mainnet or testnet (rinkeby or etc).'},
   {name: 'contract', type: String, description: 'contract address'},
   {name: 'getabi', type: Boolean, description: 'show abi of contract'},
@@ -21,6 +22,7 @@ const optionDefinitions = [
   {name: 'param', type: String, multiple: true, description: 'parameters of contract function'},
   {name: 'pendings', type: Boolean, description: 'listen to pendings transactions (only on specified node)'},
   {name: 'newblock', type: Boolean, description: 'listen to new blocks.'},
+  {name: 'deployTo', type: String, description: 'which net to deploy contract from --net'},
   {name: 'txfrom', type: String, description: 'only listen tx on from address'},
   {name: 'txto', type: String, description: 'only listen tx on from address'},
   {name: 'help', type: Boolean},
@@ -31,16 +33,16 @@ const optionSections = [
   {header: 'options', optionList: optionDefinitions},
 ];
 
-const get_abi_json = async (contract_address, ethscan_api_base, apikey) => {
-  const url = `${ethscan_api_base}/api?module=contract&action=getabi&address=${contract_address}&apikey=${apikey}`;
+const get_abi_json = async (contract_address, ethscan_api_base, ethscankey) => {
+  const url = `${ethscan_api_base}/api?module=contract&action=getabi&address=${contract_address}&apikey=${ethscankey}`;
   const response = await axios.get(url);
   const resp_abi = response.data.result;
   const json_abi = JSON.parse(resp_abi);
   return json_abi;
 }
 
-const get_src_json = async (contract_address, ethscan_api_base, apikey) => {
-  const url = `${ethscan_api_base}/api?module=contract&action=getsourcecode&address=${contract_address}&apikey=${apikey}`;
+const get_src_json = async (contract_address, ethscan_api_base, ethscankey) => {
+  const url = `${ethscan_api_base}/api?module=contract&action=getsourcecode&address=${contract_address}&apikey=${ethscankey}`;
   const response = await axios.get(url);
   return response.data.result;
 }
@@ -70,7 +72,7 @@ const main = async () => {
   if (options.alchemykey) {
     web3 = new createAlchemyWeb3(`https://${alchemy_api_base}${options.alchemykey}`);
   } else {
-    web3 = new Web3(options.rpc || 'https://cloudflare-eth.com');
+    web3 = new Web3('https://cloudflare-eth.com');
   }
 
   if (options.pendings) {
@@ -145,16 +147,16 @@ const main = async () => {
 
   if (options.contract) {
     const contract_address = options.contract;
-    const apikey = options.ethscankey;
+    const ethscankey = options.ethscankey;
 
     if (options.getabi) {
-      const json_abi = await get_abi_json(contract_address, ethscan_api_base, apikey);
+      const json_abi = await get_abi_json(contract_address, ethscan_api_base, ethscankey);
       console.log(json_abi);
     } else if (options.getsrc) {
-      const json_src = await get_src_json(contract_address, ethscan_api_base, apikey);
+      const json_src = await get_src_json(contract_address, ethscan_api_base, ethscankey);
       console.log(json_src);
     } else if (options.function) {
-      const json_abi = await get_abi_json(contract_address, ethscan_api_base, apikey);
+      const json_abi = await get_abi_json(contract_address, ethscan_api_base, ethscankey);
       const contract = new web3.eth.Contract(json_abi, contract_address);
       const function_name = options.function;
 
@@ -165,8 +167,10 @@ const main = async () => {
         const value = await contract.methods[function_name]().call();
         console.log(value);
       }
+    } else if (options.deployTo) {
+      console.log('deployTo');
     } else {
-      const json_abi = await get_abi_json(contract_address, ethscan_api_base, apikey);
+      const json_abi = await get_abi_json(contract_address, ethscan_api_base, ethscankey);
       const contract = new web3.eth.Contract(json_abi, contract_address);
       console.log(contract);
     }
